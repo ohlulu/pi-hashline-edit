@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **The edit call header path is now a clickable OSC 8 `file://` hyperlink.** `formatEditCall` mirrors Pi core's (unexported) `renderToolPath`: the display path is `~`-shortened and wrapped in a hyperlink whose target resolves `~`/relative paths against the tool call's cwd — matching the built-in read renderer that this package's `read` override inherits. Terminals without hyperlink support (per pi-tui capability detection) render the plain path unchanged. TUI-only: model-facing text and details are untouched.
+
+
 ## [0.8.3] - 2026-07-14
 
 ### Added

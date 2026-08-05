@@ -1,13 +1,24 @@
+import { homedir } from "node:os";
+import { pathToFileURL } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import {
 	buildAppliedChangedResultText,
 	colorDiffLines,
+	type CallTheme,
 	formatDiff,
+	formatEditCall,
 	type FgTheme,
 } from "../../src/edit-render";
 
 vi.mock("@earendil-works/pi-coding-agent", () => ({
 	keyHint: () => "ctrl+o to expand",
+}));
+
+const tuiState = vi.hoisted(() => ({ hyperlinks: true }));
+
+vi.mock("@earendil-works/pi-tui", () => ({
+	getCapabilities: () => ({ hyperlinks: tuiState.hyperlinks }),
+	hyperlink: (text: string, url: string) => `<link url="${url}">${text}</link>`,
 }));
 
 function makeTokenTheme(): FgTheme {
@@ -79,5 +90,67 @@ describe("edit diff rendering", () => {
 
 		const expandedEleven = formatDiff(`${makeLines(11)}\n`, true, theme);
 		expect(expandedEleven.endsWith("<dim></dim>")).toBe(false);
+	});
+});
+
+describe("edit call header", () => {
+	function makeCallTheme(): CallTheme {
+		return {
+			bold: (text: string) => text,
+			fg: (token: string, text: string) => `<${token}>${text}</${token}>`,
+		} as CallTheme;
+	}
+
+	it("renders the header path as a file:// hyperlink with a ~-shortened label", () => {
+		tuiState.hyperlinks = true;
+		const home = homedir();
+		const text = formatEditCall(
+			{ path: `${home}/notes.md`, edits: [] },
+			{},
+			false,
+			makeCallTheme(),
+			"/tmp",
+		);
+		expect(text).toBe(
+			`<toolTitle>edit</toolTitle> <link url="${pathToFileURL(`${home}/notes.md`).href}"><accent>~/notes.md</accent></link>`,
+		);
+	});
+
+	it("resolves relative paths against cwd for the hyperlink target", () => {
+		tuiState.hyperlinks = true;
+		const text = formatEditCall(
+			{ path: "src/a.ts", edits: [] },
+			{},
+			false,
+			makeCallTheme(),
+			"/repo",
+		);
+		expect(text).toContain(`url="${pathToFileURL("/repo/src/a.ts").href}"`);
+		expect(text).toContain("<accent>src/a.ts</accent>");
+	});
+
+	it("expands a ~/ path for the hyperlink target while keeping the short label", () => {
+		tuiState.hyperlinks = true;
+		const text = formatEditCall(
+			{ path: "~/notes.md", edits: [] },
+			{},
+			false,
+			makeCallTheme(),
+			"/tmp",
+		);
+		expect(text).toContain(`url="${pathToFileURL(`${homedir()}/notes.md`).href}"`);
+		expect(text).toContain("<accent>~/notes.md</accent>");
+	});
+
+	it("falls back to plain text when the terminal lacks hyperlink support", () => {
+		tuiState.hyperlinks = false;
+		const text = formatEditCall(
+			{ path: "/tmp/notes.md", edits: [] },
+			{},
+			false,
+			makeCallTheme(),
+			"/tmp",
+		);
+		expect(text).toBe("<toolTitle>edit</toolTitle> <accent>/tmp/notes.md</accent>");
 	});
 });

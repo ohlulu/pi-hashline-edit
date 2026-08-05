@@ -5,7 +5,11 @@
  * formatting, Markdown rendering) from tool execution logic.
  */
 
+import { getCapabilities, hyperlink } from "@earendil-works/pi-tui";
 import { keyHint, type Theme } from "@earendil-works/pi-coding-agent";
+import { homedir } from "node:os";
+import { isAbsolute, join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { normalizeEditRequest } from "./edit-normalize";
 import type { EditRequestParams } from "./edit";
 import type { HashlineEditToolDetails } from "./edit-response";
@@ -99,16 +103,45 @@ export function formatDiff(
 
 // ─── Edit call formatting ───────────────────────────────────────────────
 
+// Mirrors Pi core's `renderToolPath` (dist/core/tools/render-utils.js), which
+// is not exported: the built-in read tool inherits it and renders its header
+// path as a clickable OSC 8 file:// hyperlink, so the edit header should too.
+function shortenDisplayPath(path: string): string {
+	const home = homedir();
+	return path.startsWith(home) ? `~${path.slice(home.length)}` : path;
+}
+
+function linkDisplayPath(
+	styledText: string,
+	rawPath: string,
+	cwd: string | undefined,
+): string {
+	if (!getCapabilities().hyperlinks) return styledText;
+	const expanded =
+		rawPath === "~" || rawPath.startsWith("~/")
+			? join(homedir(), rawPath.slice(1))
+			: rawPath;
+	const absolutePath = isAbsolute(expanded)
+		? expanded
+		: join(cwd ?? process.cwd(), expanded);
+	return hyperlink(styledText, pathToFileURL(absolutePath).href);
+}
+
 export function formatEditCall(
 	args: EditRequestParams | undefined,
 	state: EditRenderState,
 	expanded: boolean,
 	theme: CallTheme,
+	cwd?: string,
 ): string {
 	const path = args?.path;
 	const pathDisplay =
 		typeof path === "string" && path.length > 0
-			? theme.fg("accent", path)
+			? linkDisplayPath(
+					theme.fg("accent", shortenDisplayPath(path)),
+					path,
+					cwd,
+				)
 			: theme.fg("toolOutput", "...");
 	let text = `${theme.fg("toolTitle", theme.bold("edit"))} ${pathDisplay}`;
 

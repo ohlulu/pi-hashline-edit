@@ -593,6 +593,7 @@ function buildEditToolDefinition(): EditToolDefinition {
 				context.state as EditRenderState,
 				context.expanded,
 				theme,
+				context.cwd,
 			),
 		);
 		return text;
