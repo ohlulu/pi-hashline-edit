@@ -8,9 +8,10 @@
 import { getCapabilities, hyperlink } from "@earendil-works/pi-tui";
 import { keyHint, type Theme } from "@earendil-works/pi-coding-agent";
 import { homedir } from "node:os";
-import { isAbsolute, join } from "node:path";
+import { sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { normalizeEditRequest } from "./edit-normalize";
+import { resolveToCwd } from "./path-utils";
 import type { EditRequestParams } from "./edit";
 import type { HashlineEditToolDetails } from "./edit-response";
 
@@ -108,7 +109,9 @@ export function formatDiff(
 // path as a clickable OSC 8 file:// hyperlink, so the edit header should too.
 function shortenDisplayPath(path: string): string {
 	const home = homedir();
-	return path.startsWith(home) ? `~${path.slice(home.length)}` : path;
+	if (path === home) return "~";
+	// Only shorten on a path boundary: `/home/alice2` is not inside `/home/alice`.
+	return path.startsWith(`${home}${sep}`) ? `~${path.slice(home.length)}` : path;
 }
 
 function linkDisplayPath(
@@ -117,13 +120,10 @@ function linkDisplayPath(
 	cwd: string | undefined,
 ): string {
 	if (!getCapabilities().hyperlinks) return styledText;
-	const expanded =
-		rawPath === "~" || rawPath.startsWith("~/")
-			? join(homedir(), rawPath.slice(1))
-			: rawPath;
-	const absolutePath = isAbsolute(expanded)
-		? expanded
-		: join(cwd ?? process.cwd(), expanded);
+	// Resolve through the same helper execute() uses, so the link target can never
+	// point somewhere other than the file the edit touches (Windows drive-relative
+	// paths like `C:notes.md` resolve differently under join vs resolve).
+	const absolutePath = resolveToCwd(rawPath, cwd ?? process.cwd());
 	return hyperlink(styledText, pathToFileURL(absolutePath).href);
 }
 

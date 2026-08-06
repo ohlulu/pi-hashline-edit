@@ -9,6 +9,7 @@ import {
 	formatEditCall,
 	type FgTheme,
 } from "../../src/edit-render";
+import { resolveToCwd } from "../../src/path-utils";
 
 vi.mock("@earendil-works/pi-coding-agent", () => ({
 	keyHint: () => "ctrl+o to expand",
@@ -140,6 +141,48 @@ describe("edit call header", () => {
 		);
 		expect(text).toContain(`url="${pathToFileURL(`${homedir()}/notes.md`).href}"`);
 		expect(text).toContain("<accent>~/notes.md</accent>");
+	});
+
+	// The header link and the file the edit actually writes must resolve
+	// identically; join() and resolve() disagree on Windows drive-relative paths
+	// such as `C:notes.md`.
+	it("resolves the hyperlink target exactly like the edit pipeline does", () => {
+		tuiState.hyperlinks = true;
+		const cwd = "/repo";
+		for (const rawPath of [
+			"src/a.ts",
+			"./src/a.ts",
+			"../sibling/a.ts",
+			"/tmp/notes.md",
+			"~/notes.md",
+			"C:notes.md",
+		]) {
+			const text = formatEditCall(
+				{ path: rawPath, edits: [] },
+				{},
+				false,
+				makeCallTheme(),
+				cwd,
+			);
+			expect(text).toContain(
+				`url="${pathToFileURL(resolveToCwd(rawPath, cwd)).href}"`,
+			);
+		}
+	});
+
+	it("does not shorten a sibling directory that merely shares the home prefix", () => {
+		tuiState.hyperlinks = false;
+		const siblingPath = `${homedir()}2/notes.md`;
+		const text = formatEditCall(
+			{ path: siblingPath, edits: [] },
+			{},
+			false,
+			makeCallTheme(),
+			"/tmp",
+		);
+		expect(text).toBe(
+			`<toolTitle>edit</toolTitle> <accent>${siblingPath}</accent>`,
+		);
 	});
 
 	it("falls back to plain text when the terminal lacks hyperlink support", () => {
