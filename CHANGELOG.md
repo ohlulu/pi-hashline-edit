@@ -9,8 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **The edit call header path is now a clickable OSC 8 `file://` hyperlink.** `formatEditCall` mirrors Pi core's (unexported) `renderToolPath`: the display path is `~`-shortened and wrapped in a hyperlink whose target is resolved by the same `resolveToCwd` helper `execute()` uses, so the link can never point at a different file than the edit writes (`join` and `resolve` disagree on Windows drive-relative paths such as `C:notes.md`). `~`-shortening only triggers on a path boundary, so a sibling directory sharing the home prefix (`/home/alice2`) is displayed in full. Terminals without hyperlink support (per pi-tui capability detection) render the plain path unchanged. TUI-only: model-facing text and details are untouched.
-
+- **The edit call header path is now a clickable OSC 8 `file://` hyperlink.** The header shows a `~`-shortened path, matching how Pi's built-in tools render theirs, and the link opens exactly the file the edit writes. `~`-shortening only triggers on a path boundary, so a sibling directory sharing the home prefix (`/home/alice2`) is still displayed in full. Terminals without hyperlink support show the same `~`-shortened path without the link. Header parity with the `read` tool requires pi >= 0.83, which is where the built-in read header became a hyperlink; on pi 0.74–0.82 the edit header links while the read header does not. TUI-only: model-facing text and details are untouched.
 
 ## [0.8.3] - 2026-07-14
 
