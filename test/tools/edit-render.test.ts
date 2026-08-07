@@ -1,4 +1,5 @@
 import { homedir } from "node:os";
+import { join, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -104,16 +105,16 @@ describe("edit call header", () => {
 
 	it("renders the header path as a file:// hyperlink with a ~-shortened label", () => {
 		tuiState.hyperlinks = true;
-		const home = homedir();
+		const homePath = join(homedir(), "notes.md");
 		const text = formatEditCall(
-			{ path: `${home}/notes.md`, edits: [] },
+			{ path: homePath, edits: [] },
 			{},
 			false,
 			makeCallTheme(),
 			"/tmp",
 		);
 		expect(text).toBe(
-			`<toolTitle>edit</toolTitle> <link url="${pathToFileURL(`${home}/notes.md`).href}"><accent>~/notes.md</accent></link>`,
+			`<toolTitle>edit</toolTitle> <link url="${pathToFileURL(homePath).href}"><accent>~${sep}notes.md</accent></link>`,
 		);
 	});
 
@@ -126,7 +127,9 @@ describe("edit call header", () => {
 			makeCallTheme(),
 			"/repo",
 		);
-		expect(text).toContain(`url="${pathToFileURL("/repo/src/a.ts").href}"`);
+		expect(text).toContain(
+			`url="${pathToFileURL(resolveToCwd("src/a.ts", "/repo")).href}"`,
+		);
 		expect(text).toContain("<accent>src/a.ts</accent>");
 	});
 
@@ -139,7 +142,9 @@ describe("edit call header", () => {
 			makeCallTheme(),
 			"/tmp",
 		);
-		expect(text).toContain(`url="${pathToFileURL(`${homedir()}/notes.md`).href}"`);
+		expect(text).toContain(
+			`url="${pathToFileURL(join(homedir(), "notes.md")).href}"`,
+		);
 		expect(text).toContain("<accent>~/notes.md</accent>");
 	});
 
@@ -172,7 +177,7 @@ describe("edit call header", () => {
 
 	it("does not shorten a sibling directory that merely shares the home prefix", () => {
 		tuiState.hyperlinks = false;
-		const siblingPath = `${homedir()}2/notes.md`;
+		const siblingPath = join(`${homedir()}2`, "notes.md");
 		const text = formatEditCall(
 			{ path: siblingPath, edits: [] },
 			{},
@@ -182,6 +187,20 @@ describe("edit call header", () => {
 		);
 		expect(text).toBe(
 			`<toolTitle>edit</toolTitle> <accent>${siblingPath}</accent>`,
+		);
+	});
+
+	it("drops the hyperlink but keeps the ~-shortened label without terminal support", () => {
+		tuiState.hyperlinks = false;
+		const text = formatEditCall(
+			{ path: join(homedir(), "notes.md"), edits: [] },
+			{},
+			false,
+			makeCallTheme(),
+			"/tmp",
+		);
+		expect(text).toBe(
+			`<toolTitle>edit</toolTitle> <accent>~${sep}notes.md</accent>`,
 		);
 	});
 

@@ -109,9 +109,18 @@ export function formatDiff(
 // path as a clickable OSC 8 file:// hyperlink, so the edit header should too.
 function shortenDisplayPath(path: string): string {
 	const home = homedir();
-	if (path === home) return "~";
+	// Windows paths mix separators (`C:\Users\me/notes.md`), so compare on a
+	// slash-normalized form. `\` -> `/` preserves length, so slicing the original
+	// string by home.length stays correct.
+	const toSlash = (value: string) =>
+		sep === "\\" ? value.split("\\").join("/") : value;
+	const normalizedHome = toSlash(home);
+	const normalizedPath = toSlash(path);
+	if (normalizedPath === normalizedHome) return "~";
 	// Only shorten on a path boundary: `/home/alice2` is not inside `/home/alice`.
-	return path.startsWith(`${home}${sep}`) ? `~${path.slice(home.length)}` : path;
+	return normalizedPath.startsWith(`${normalizedHome}/`)
+		? `~${path.slice(home.length)}`
+		: path;
 }
 
 function linkDisplayPath(
